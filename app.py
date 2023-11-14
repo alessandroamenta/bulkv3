@@ -26,7 +26,8 @@ API_KEY = st.sidebar.text_input("🔑 OpenAI API Key", value='', type='password'
 model_choice = st.sidebar.selectbox("🤖 Choose model:", ["gpt-3.5-turbo-16k", "gpt-4", "gpt-4-1106-preview"])
 # Add a slider for temperature setting in the sidebar
 temperature = st.sidebar.slider("🌡️ Temperature", min_value=0.0, max_value=1.0, value=0.2, step=0.01)
-seed = st.sidebar.number_input("🔢 Seed (for deterministic outputs)", min_value=0, max_value=None, value=12345, step=1)
+# Fixed seed value
+seed = 12345
 # Add a toggle for choosing between async and sync processing in the sidebar
 processing_mode = st.sidebar.selectbox(
     "Select Processing Mode:",
