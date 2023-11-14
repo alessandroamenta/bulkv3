@@ -58,6 +58,6 @@ def get_answers(prompts, model_choice, common_instructions, api_key, temperature
         progress_bar.progress(progress)
         logging.info(f"Processing prompt {index+1}/{total}: {prompt[:50]}... System Fingerprint: {system_fingerprint}")
 
-        time.sleep(5) 
+        time.sleep(2) 
 
     return results
