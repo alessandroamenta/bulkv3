@@ -7,7 +7,7 @@ import requests
 import time
 
 # Assuming your FastAPI backend is running at the specified URL
-FASTAPI_BASE_URL = "http://127.0.0.1:8000"
+FASTAPI_BASE_URL = "https://bulk-v3-service.onrender.com"
 
 logging.basicConfig(level=logging.INFO)
 
