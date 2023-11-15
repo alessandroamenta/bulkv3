@@ -6,3 +6,4 @@ langchain
 aiohttp
 openpyxl
 xlsxwriter
+requests
