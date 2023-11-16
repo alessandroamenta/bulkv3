@@ -65,8 +65,9 @@ def process_task(data, results_placeholder):
                     st.error(f"Error creating DataFrame: {e}")
                     break
             else:
-                results_placeholder.info("GPT is whipping up your answers, hang tight.")
-                time.sleep(10)  # Adjust as needed
+                task_progress = task_info.get("progress")
+                results_placeholder.info(f"GPT is whipping up your answers, hang tight! - {task_progress}😎")
+                time.sleep(3)  # Adjust as needed
     else:
         st.error("Failed to start processing. Please try again.")
 

@@ -60,10 +60,14 @@ async def get_answers(prompts, model_choice, common_instructions, api_key, tempe
             batch_results = await asyncio.gather(*tasks)
             results.extend(batch_results)
 
-            # No progress bar update needed here
+            # Update progress
+            progress = f"Processing {min(i + batch_size, total)} of {total}"
+            tasks[task_id]['progress'] = progress
+
             # Check if we need to wait before the next batch
-            if i + batch_size < len(prompts):
-                await asyncio.sleep(5)  # Adjust the delay as needed
-        # Update the task status in the global dictionary
+            if i + batch_size < total:
+                await asyncio.sleep(4)  # Adjust the delay as needed
+
+    # Update the task status in the global dictionary
     tasks[task_id] = {"status": "completed", "results": results}
     return {"status": "completed", "results": results}
