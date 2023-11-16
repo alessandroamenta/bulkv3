@@ -27,6 +27,7 @@ def fetch_task_status(task_id):
     try:
         check_response = requests.get(f"{FASTAPI_BASE_URL}/status/{task_id}")
         if check_response.status_code == 200:
+            logging.info(f"Status response for task {task_id}: {check_response.json()}")
             return check_response.json()
         else:
             return None

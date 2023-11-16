@@ -66,6 +66,7 @@ async def process_prompts(request: PromptRequest, background_tasks: BackgroundTa
 async def check_status(task_id: str):
     task = tasks.get(task_id)
     if task:
+        logging.info(f"Returning status for task {task_id}: {task['status']}")
         return task
     raise HTTPException(status_code=404, detail="Task not found")
 
@@ -80,12 +81,13 @@ def process_prompts_sync(request: PromptRequest, task_id: str, tasks):
         logging.error(f"Error in synchronous processing for task {task_id}: {e}")
         tasks[task_id] = {"status": "failed", "error": str(e)}
 
-def process_prompts_async(request: PromptRequest, task_id: str, tasks):
+async def process_prompts_async(request: PromptRequest, task_id: str, tasks):
     try:
-        logging.info(f"Starting asynchronous processing for task {task_id}")
-        results = get_answers_async(request.prompts, request.model_choice, request.common_instructions, request.api_key, request.temperature, request.seed, request.batch_size, task_id, tasks)
+        logging.info(f"Starting async processing for task {task_id} with {len(request.prompts)} prompts.")
+        results = await get_answers_async(request.prompts, request.model_choice, request.common_instructions, request.api_key, request.temperature, request.seed, request.batch_size, task_id, tasks)
         tasks[task_id] = {"status": "completed", "results": results}
         logging.info(f"Task {task_id} completed successfully")
+        logging.info(f"Async processing completed for task {task_id}.")
     except Exception as e:
         logging.error(f"Error in asynchronous processing for task {task_id}: {e}")
         tasks[task_id] = {"status": "failed", "error": str(e)}

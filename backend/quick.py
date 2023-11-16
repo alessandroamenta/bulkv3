@@ -56,17 +56,18 @@ async def get_answers(prompts, model_choice, common_instructions, api_key, tempe
     async with aiohttp.ClientSession() as session:
         for i in range(0, len(prompts), batch_size):
             batch_prompts = prompts[i:i+batch_size]
-            tasks = [get_answer(session, prompt, model_choice, common_instructions, api_key, temperature, seed) for prompt in batch_prompts]
-            batch_results = await asyncio.gather(*tasks)
+            tasks_list = [get_answer(session, prompt, model_choice, common_instructions, api_key, temperature, seed) for prompt in batch_prompts]
+            batch_results = await asyncio.gather(*tasks_list)
+            logging.info(f"Batch {i // batch_size + 1}/{(total + batch_size - 1) // batch_size} processed.")
             results.extend(batch_results)
 
             # Update progress
-            progress = f"Processing {min(i + batch_size, total)} of {total}"
+            progress = f"Processing prompt {min(i + batch_size, total)} of {total}"
             tasks[task_id]['progress'] = progress
 
             # Check if we need to wait before the next batch
             if i + batch_size < total:
-                await asyncio.sleep(4)  # Adjust the delay as needed
+                await asyncio.sleep(3)  # Adjust the delay as needed
 
     # Update the task status in the global dictionary
     tasks[task_id] = {"status": "completed", "results": results}
