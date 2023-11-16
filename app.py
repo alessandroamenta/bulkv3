@@ -66,7 +66,8 @@ def process_task(data, results_placeholder):
                     break
             else:
                 task_progress = task_info.get("progress")
-                results_placeholder.info(f"GPT is whipping up your answers, hang tight! - {task_progress}😎")
+                progress_message = "GPT is processing your request. Hang tight!" if task_progress is None else f"GPT is whipping up your answers, hang tight! - {task_progress} 😎"
+                results_placeholder.info(progress_message)
                 time.sleep(3)  # Adjust as needed
     else:
         st.error("Failed to start processing. Please try again.")
