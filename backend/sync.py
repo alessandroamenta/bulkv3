@@ -6,7 +6,7 @@ API_URL = "https://api.openai.com/v1/chat/completions"
 
 logging.basicConfig(level=logging.INFO)
 
-def get_answer(prompt, model_choice, common_instructions, api_key, temperature, seed):
+def get_answer(prompt, ai_model_choice, common_instructions, api_key, temperature, seed):
     full_prompt = f"{common_instructions}\n{prompt}" if common_instructions else prompt
     logging.info(f"Sending request with prompt: {prompt[:50]}...")
     headers = {
@@ -15,7 +15,7 @@ def get_answer(prompt, model_choice, common_instructions, api_key, temperature, 
         "User-Agent": "OpenAI Python v0.27.3"
     }
     data = {
-        "model": model_choice,
+        "model": ai_model_choice,
         "messages": [{"role": "user", "content": full_prompt}],
         "temperature": temperature,
         "top_p": 1,
@@ -51,11 +51,11 @@ def get_answer(prompt, model_choice, common_instructions, api_key, temperature, 
     logging.error("Maximum retry attempts reached.")
     return None, None
 
-def get_answers(prompts, model_choice, common_instructions, api_key, temperature, seed, task_id, tasks):
+def get_answers(prompts, ai_model_choice, common_instructions, api_key, temperature, seed, task_id, tasks):
     results = []
     total = len(prompts)
     for index, prompt in enumerate(prompts):
-        answer, system_fingerprint = get_answer(prompt, model_choice, common_instructions, api_key, temperature, seed)
+        answer, system_fingerprint = get_answer(prompt, ai_model_choice, common_instructions, api_key, temperature, seed)
         results.append(answer)
         logging.info(f"Processing prompt {index+1}/{total}: {prompt[:50]}... System Fingerprint: {system_fingerprint}")
         progress = f"Processing prompt {index + 1} of {total}"

@@ -76,7 +76,7 @@ def process_task(data, results_placeholder):
 # Sidebar configuration
 st.sidebar.title("🛠️ Settings")
 API_KEY = st.sidebar.text_input("🔑 OpenAI API Key", value='', type='password')
-model_choice = st.sidebar.selectbox("🤖 Choose model:", ["gpt-3.5-turbo-16k", "gpt-4", "gpt-4-1106-preview"])
+ai_model_choice = st.sidebar.selectbox("🤖 Choose model:", ["gpt-3.5-turbo-16k", "gpt-4", "gpt-4-1106-preview"])
 temperature = st.sidebar.slider("🌡️ Temperature", min_value=0.0, max_value=1.0, value=0.2, step=0.01)
 seed = 12345  # Fixed seed value
 processing_mode = st.sidebar.selectbox("Select Processing Mode:", ["Quick Mode", "High Accuracy Mode"], index=1)
@@ -89,7 +89,9 @@ with st.sidebar.expander("📝 Custom Instructions"):
 # Main App
 st.title("🧠 GPT Answer Generator")
 st.write("Generate answers for a bulk of prompts using OpenAI.")
-st.warning("Note: The number of prompts you can process without hitting rate limits may vary based on several factors.")
+st.warning(
+    "Heads-up: The number of prompts you can smoothly process depends on how complex they are, your chosen AI model, and the set batch size. If you hit the rate limits, you might get less accurate answers, or sometimes, none at all. So, remember to adjust your batch size, pick a suitable model, and manage your prompts accordingly to get the best results."
+)
 
 # Input method selection
 input_method = st.selectbox("📥 Choose input method:", ["Text Box", "File Upload"])
@@ -107,7 +109,7 @@ else:
 # Button to start processing
 results_placeholder = st.empty()
 if st.button("🚀 Generate Answers") and API_KEY:
-    data = {"prompts": prompts, "model_choice": model_choice, "common_instructions": common_instructions, "api_key": API_KEY, "temperature": temperature, "seed": seed, "processing_mode": processing_mode}
+    data = {"prompts": prompts, "ai_model_choice": ai_model_choice, "common_instructions": common_instructions, "api_key": API_KEY, "temperature": temperature, "seed": seed, "processing_mode": processing_mode}
     if processing_mode == "Quick Mode":
         data["batch_size"] = batch_size
     process_task(data, results_placeholder)

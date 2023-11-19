@@ -6,7 +6,7 @@ API_URL = "https://api.openai.com/v1/chat/completions"
 
 logging.basicConfig(level=logging.INFO)
 
-async def get_answer(session, prompt, model_choice, common_instructions, api_key, temperature, seed): 
+async def get_answer(session, prompt, ai_model_choice, common_instructions, api_key, temperature, seed): 
     full_prompt = f"{common_instructions}\n{prompt}" if common_instructions else prompt
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -14,7 +14,7 @@ async def get_answer(session, prompt, model_choice, common_instructions, api_key
         "User-Agent": "OpenAI Python v0.27.3"
     }
     data = {
-        "model": model_choice,
+        "model": ai_model_choice,
         "messages": [{"role": "user", "content": full_prompt}],
         "temperature": temperature,
         "top_p": 1,
@@ -49,14 +49,14 @@ async def get_answer(session, prompt, model_choice, common_instructions, api_key
             return None
 
 
-async def get_answers(prompts, model_choice, common_instructions, api_key, temperature, seed, batch_size, task_id, tasks):
+async def get_answers(prompts, ai_model_choice, common_instructions, api_key, temperature, seed, batch_size, task_id, tasks):
     results = []
     total = len(prompts)
     # Use a context manager to ensure the session is closed after use
     async with aiohttp.ClientSession() as session:
         for i in range(0, len(prompts), batch_size):
             batch_prompts = prompts[i:i+batch_size]
-            tasks_list = [get_answer(session, prompt, model_choice, common_instructions, api_key, temperature, seed) for prompt in batch_prompts]
+            tasks_list = [get_answer(session, prompt, ai_model_choice, common_instructions, api_key, temperature, seed) for prompt in batch_prompts]
             batch_results = await asyncio.gather(*tasks_list)
             logging.info(f"Batch {i // batch_size + 1}/{(total + batch_size - 1) // batch_size} processed.")
             results.extend(batch_results)
