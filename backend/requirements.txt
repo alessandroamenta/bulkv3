@@ -5,3 +5,4 @@ pydantic
 requests
 dropbox
 redis
+httpx
