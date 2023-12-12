@@ -7,3 +7,5 @@ aiohttp
 openpyxl
 xlsxwriter
 requests
+dropbox
+watchdog

@@ -1,4 +1,5 @@
-from fastapi import FastAPI, BackgroundTasks, HTTPException, Request
+from fastapi import FastAPI, BackgroundTasks, HTTPException, Request, Depends
+from fastapi.responses import RedirectResponse, JSONResponse, HTMLResponse
 from pydantic import BaseModel
 from quick import get_answers as get_answers_async
 from sync import get_answers as get_answers_sync
@@ -8,6 +9,10 @@ from fastapi.responses import JSONResponse
 import logging
 from typing import Optional
 from fastapi.middleware.cors import CORSMiddleware
+import httpx
+import redis
+
+
 
 logging.basicConfig(level=logging.INFO)
 
@@ -22,7 +27,92 @@ app.add_middleware(
     allow_headers=["*"],  # Allows all headers
 )
 
+# Initialize Redis client
+redis_client = redis.Redis(
+  host='redis-11690.c323.us-east-1-2.ec2.cloud.redislabs.com',
+  port=11690,
+  password='AcXaA835oSUqdTNkDtSVGwTHyXw97WGZ'
+)
 
+# Replace these with your actual Dropbox app credentials
+DROPBOX_APP_KEY = "npvcigoarpi9ftu"
+DROPBOX_APP_SECRET = "vzhjh9kqojfoipr"
+# Securely store and retrieve your refresh token
+REDIRECT_URI = "https://bulk-v3-service.onrender.com/auth"
+#REDIRECT_URI = "http://localhost:8000/auth"
+
+
+@app.get("/auth/redirect")
+async def auth_redirect():
+    return RedirectResponse(
+        url=f"https://www.dropbox.com/oauth2/authorize?client_id={DROPBOX_APP_KEY}&response_type=code&redirect_uri={REDIRECT_URI}&token_access_type=offline"
+    )
+
+@app.get("/auth")
+async def auth(request: Request):
+    code = request.query_params.get("code")
+    if code:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                "https://api.dropbox.com/oauth2/token",
+                data={
+                    "code": code,
+                    "grant_type": "authorization_code",
+                    "client_id": DROPBOX_APP_KEY,
+                    "client_secret": DROPBOX_APP_SECRET,
+                    "redirect_uri": REDIRECT_URI,
+                },
+            )
+        if response.status_code == 200:
+            token_data = response.json()
+            # Store tokens in Redis
+            redis_client.set("dropbox_refresh_token", token_data["refresh_token"])
+            redis_client.set("dropbox_access_token", token_data["access_token"])
+            # Return an HTML response indicating successful authentication
+            html_content = "<html><body><h2>Authentication successful. Please return to the app.</h2></body></html>"
+            return HTMLResponse(content=html_content)
+        else:
+            return JSONResponse(status_code=400, content={"message": "Failed to authenticate"})
+    else:
+        raise HTTPException(status_code=400, detail="Missing authorization code")
+
+@app.get("/refresh_token")
+async def refresh_token():
+    refresh_token = redis_client.get("dropbox_refresh_token").decode("utf-8") if redis_client.get("dropbox_refresh_token") else None
+    if refresh_token:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                "https://api.dropbox.com/oauth2/token",
+                data={
+                    "grant_type": "refresh_token",
+                    "refresh_token": refresh_token,
+                    "client_id": DROPBOX_APP_KEY,
+                    "client_secret": DROPBOX_APP_SECRET,
+                },
+            )
+        if response.status_code == 200:
+            new_tokens = response.json()
+            redis_client.set("dropbox_access_token", new_tokens["access_token"])
+            return {"access_token": new_tokens["access_token"]}
+        else:
+            raise HTTPException(status_code=response.status_code, detail="Failed to refresh token")
+    else:
+        raise HTTPException(status_code=400, detail="Refresh token not available")
+
+@app.get("/check_authentication")
+async def check_authentication():
+    access_token = redis_client.get("dropbox_access_token").decode("utf-8") if redis_client.get("dropbox_access_token") else None
+    if access_token:
+        return {"authenticated": True, "access_token": access_token}
+    else:
+        return {"authenticated": False}
+
+# Endpoint to clear authentication (logout)
+@app.get("/clear_authentication")
+async def clear_authentication():
+    redis_client.delete("dropbox_refresh_token")
+    redis_client.delete("dropbox_access_token")
+    return {"message": "Dropbox authentication cleared"}
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):

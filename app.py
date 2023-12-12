@@ -5,11 +5,41 @@ import base64
 import logging
 import requests
 import time
+import dropbox
 
 # Assuming your FastAPI backend is running at the specified URL
 FASTAPI_BASE_URL = "https://bulk-v3-service.onrender.com"
+#FASTAPI_BASE_URL = "http://localhost:8000"
 
 logging.basicConfig(level=logging.INFO)
+
+# Dropbox Upload Function
+def upload_to_dropbox(file_bytes, dropbox_folder, file_name):
+    # Request new access token from backend
+    response = requests.get(f"{FASTAPI_BASE_URL}/refresh_token")
+    if response.status_code == 200:
+        access_token = response.json().get("access_token")
+        dbx = dropbox.Dropbox(access_token)
+        dropbox_path = f'/{dropbox_folder}/{file_name}'
+        try:
+            dbx.files_upload(file_bytes, dropbox_path, mode=dropbox.files.WriteMode.overwrite)
+            return True
+        except Exception as e:
+            print(f"Error uploading to Dropbox: {e}")
+            return False
+    else:
+        print("Failed to refresh Dropbox token")
+        return False
+
+
+def check_dropbox_authentication():
+    response = requests.get(f"{FASTAPI_BASE_URL}/check_authentication")
+    if response.status_code == 200:
+        st.session_state['dropbox_authenticated'] = response.json().get("authenticated", False)
+        st.session_state['dropbox_token'] = response.json().get("access_token", None)
+    else:
+        st.session_state['dropbox_authenticated'] = False
+        st.session_state['dropbox_token'] = None
 
 def autoplay_audio(file_path: str):
     with open(file_path, "rb") as f:
@@ -35,7 +65,7 @@ def fetch_task_status(task_id):
         logging.error(f"Error checking task status: {e}")
         return None
 
-def process_task(data, results_placeholder):
+def process_task(data, results_placeholder, dropbox_folder, output_file_name):
     """Function to process the task and handle UI updates"""
     response = requests.post(f"{FASTAPI_BASE_URL}/process/", json=data)
     if response.status_code == 200:
@@ -51,16 +81,27 @@ def process_task(data, results_placeholder):
                 try:
                     df = pd.DataFrame({'Prompts': prompts, 'Answers': answers})
                     results_placeholder.write(df)
-                    # Convert DataFrame to Excel and provide a download link
+                    
+                    # Convert DataFrame to Excel
                     output = BytesIO()
                     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
                         df.to_excel(writer, index=False)
                     excel_data = output.getvalue()
                     b64 = base64.b64encode(excel_data).decode('utf-8')
-                    st.success("🎉 Answers generated successfully!")
-                    autoplay_audio('notification.mp3')  # Optional: play a notification sound
-                    download_link = f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="answers.xlsx">Download Excel File</a>'
+
+                    # Provide download link
+                    download_link = f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="{output_file_name}">Download Excel File</a>'
+
                     st.markdown(download_link, unsafe_allow_html=True)
+                    st.success("🎉 Answers generated successfully!")
+                    autoplay_audio('notification.mp3')
+
+                    # Upload to Dropbox if authenticated
+                    if dropbox_folder and 'dropbox_token' in st.session_state and st.session_state['dropbox_token']:
+                        if upload_to_dropbox(excel_data, dropbox_folder, output_file_name):
+                            st.success(f"File uploaded to Dropbox successfully at /{dropbox_folder}/{output_file_name}!")
+                        else:
+                            st.error("Failed to upload the file to Dropbox.")
                     break  # Exit loop after successful processing
                 except Exception as e:
                     st.error(f"Error creating DataFrame: {e}")
@@ -73,9 +114,37 @@ def process_task(data, results_placeholder):
     else:
         st.error("Failed to start processing. Please try again.")
 
+# Ensure Dropbox authentication check is performed on every page load
+check_dropbox_authentication()
+
 # Sidebar configuration
 st.sidebar.title("🛠️ Settings")
 API_KEY = st.sidebar.text_input("🔑 OpenAI API Key", value='', type='password')
+
+# Dropbox Integration
+if 'dropbox_authenticated' not in st.session_state:
+    st.session_state['dropbox_authenticated'] = check_dropbox_authentication()
+
+if st.session_state['dropbox_authenticated']:
+    st.sidebar.success("✅ Authenticated with Dropbox")
+    dropbox_folder = st.sidebar.text_input("Dropbox Folder", value='bulk')
+
+    # Add Log Out button here
+    if st.sidebar.button("Log Out from Dropbox"):
+        response = requests.get(f"{FASTAPI_BASE_URL}/clear_authentication")
+        if response.status_code == 200:
+            st.session_state.pop('dropbox_authenticated', None)
+            st.session_state.pop('dropbox_token', None)
+            st.sidebar.success("Logged out from Dropbox")
+        else:
+            st.sidebar.error("Failed to log out from Dropbox")
+else:
+    if st.sidebar.button("Connect to Dropbox"):
+        st.sidebar.markdown(f"[Authenticate with Dropbox]({FASTAPI_BASE_URL}/auth/redirect)", unsafe_allow_html=True)
+
+# Input for custom output file name
+custom_output_name = st.sidebar.text_input("Name Output File (without extension - optional!)")
+
 ai_model_choice = st.sidebar.selectbox("🤖 Choose model:", ["gpt-3.5-turbo-16k", "gpt-4", "gpt-4-1106-preview"])
 temperature = st.sidebar.slider("🌡️ Temperature", min_value=0.0, max_value=1.0, value=0.2, step=0.01)
 seed = 12345  # Fixed seed value
@@ -89,31 +158,53 @@ with st.sidebar.expander("📝 Custom Instructions"):
 # Main App
 st.title("🧠 GPT Answer Generator")
 st.write("Generate answers for a bulk of prompts using OpenAI.")
-st.warning(
-    "Heads-up: The number of prompts you can smoothly process depends on how complex they are, your chosen AI model, and the set batch size. If you hit the rate limits, you might get less accurate answers, or sometimes, none at all. So, remember to adjust your batch size, pick a suitable model, and manage your prompts accordingly to get the best results."
-)
+st.warning("⚠️ Dropbox Notes:\n"
+            "- File Overwriting: If a file with the same name already exists in your specified Dropbox folder, it will be overwritten.\n"
+            "- Folder Creation: If the specified folder doesn't exist, Dropbox will automatically create it during the file upload.")
 
 # Input method selection
 input_method = st.selectbox("📥 Choose input method:", ["Text Box", "File Upload"])
 if input_method == "Text Box":
     user_input = st.text_area("Enter prompts:", height=300)
     prompts = user_input.split('\n\n')
+    default_output_file_name = "answers.xlsx"
 elif input_method == "File Upload":
     uploaded_file = st.file_uploader("📂 Upload a CSV or Excel file", type=["csv", "xlsx"])
     if uploaded_file:
         df = pd.read_csv(uploaded_file) if uploaded_file.name.endswith('.csv') else pd.read_excel(uploaded_file)
         prompts = df.iloc[:, 0].tolist()
-else:
-    prompts = []
+        default_output_file_name = uploaded_file.name
+    else:
+        prompts = []
+        default_output_file_name = "answers.xlsx"
 
 # Button to start processing
 results_placeholder = st.empty()
-if st.button("🚀 Generate Answers") and API_KEY:
-    data = {"prompts": prompts, "ai_model_choice": ai_model_choice, "common_instructions": common_instructions, "api_key": API_KEY, "temperature": temperature, "seed": seed, "processing_mode": processing_mode}
+if st.button("🚀 Generate Answers"):
+    if not API_KEY:
+        st.warning("Please enter your OpenAI API Key to proceed.")
+    else:
+        output_file_name = f"{custom_output_name}.xlsx" if custom_output_name else default_output_file_name
+        data = {
+            "prompts": prompts, 
+            "ai_model_choice": ai_model_choice, 
+            "common_instructions": common_instructions, 
+            "api_key": API_KEY, 
+            "temperature": temperature, 
+            "seed": seed, 
+            "processing_mode": processing_mode
+        }    
     if processing_mode == "Quick Mode":
         data["batch_size"] = batch_size
-    process_task(data, results_placeholder)
+            # Determine the output file name based on user input or default logic
+    if custom_output_name:
+        output_file_name = f"{custom_output_name}.xlsx"
+    else:
+        output_file_name = uploaded_file.name if input_method == "File Upload" and uploaded_file is not None else "answers.xlsx"
+
+    # Call process_task with the determined file name
+    process_task(data, results_placeholder, dropbox_folder, output_file_name)
 
 # Check if a task is already in progress when the page is loaded/refreshed
 if 'task_id' in st.session_state:
-    process_task(None, results_placeholder)  # Call with None data to just check status
+    process_task(None, results_placeholder, dropbox_folder, default_output_file_name)  # Call with None data to just check status
