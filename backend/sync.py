@@ -23,30 +23,30 @@ def get_answer(prompt, ai_model_choice, common_instructions, api_key, temperatur
     }
     attempts = 0
     max_attempts = 5  # maximum number of retries
-    backoff_factor = 1  # initial delay in seconds
-
     while attempts < max_attempts:
         try:
             response = requests.post(API_URL, headers=headers, json=data)
             logging.info(f"Response Status: {response.status_code}, Response Time: {response.elapsed.total_seconds()} seconds")
 
             if response.status_code == 429:
-                logging.error("Rate limit exceeded. Will retry after a delay.")
-                time.sleep(backoff_factor)
-                backoff_factor *= 2  # double the delay for next retry
+                retry_after = int(response.headers.get('Retry-After', 60)) # Default to 60 seconds
+                logging.error(f"Rate limit exceeded. Will retry after {retry_after} seconds.")
+                time.sleep(retry_after)
                 attempts += 1
             elif response.status_code != 200:
                 logging.error(f"Non-200 response received: {response.status_code}\nResponse body: {response.text}")
                 return None, None
             else:
-                # Process successful response
                 response_data = response.json()
                 answer = response_data.get('choices', [{}])[0].get('message', {}).get('content', '')
                 system_fingerprint = response_data.get('system_fingerprint', 'Not available')
+                logging.info(f"Received answer for prompt: {prompt[:50]}...")
                 return answer, system_fingerprint
+        except requests.RequestException as e:
+            logging.error(f"HTTP Request Exception: {e}")
+            attempts += 1
         except Exception as e:
             logging.error(f"Exception in API Response Parsing: {e}")
-            logging.error(f"API Response: {response.text}")
             return None, None
     logging.error("Maximum retry attempts reached.")
     return None, None

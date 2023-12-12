@@ -12,8 +12,6 @@ from fastapi.middleware.cors import CORSMiddleware
 import httpx
 import redis
 
-
-
 logging.basicConfig(level=logging.INFO)
 
 app = FastAPI()
@@ -69,7 +67,30 @@ async def auth(request: Request):
             redis_client.set("dropbox_refresh_token", token_data["refresh_token"])
             redis_client.set("dropbox_access_token", token_data["access_token"])
             # Return an HTML response indicating successful authentication
-            html_content = "<html><body><h2>Authentication successful. Please return to the app.</h2></body></html>"
+            html_content = """
+            <html>
+                <head>
+                    <style>
+                        body {
+                            font-family: Arial, sans-serif;
+                            background-color: #f4f4f4;
+                            text-align: center;
+                            padding: 50px;
+                        }
+                        h2 {
+                            color: #4CAF50;
+                        }
+                        p {
+                            color: #555;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <h2>Authentication Successful!</h2>
+                    <p>Please return to the app and refresh the page once to use Dropbox.</p>
+                </body>
+            </html>
+            """
             return HTMLResponse(content=html_content)
         else:
             return JSONResponse(status_code=400, content={"message": "Failed to authenticate"})
