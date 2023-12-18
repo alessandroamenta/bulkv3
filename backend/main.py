@@ -138,7 +138,7 @@ async def clear_authentication():
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     body = await request.body()
-    logging.error(f"Validation error for request: {body}, errors: {exc.errors()}")
+    logging.error(f"Validation error for request body: {body.decode('utf-8')}, errors: {exc.errors()}")
     return JSONResponse(
         status_code=422,
         content={"detail": exc.errors(), "body": body.decode("utf-8")},
