@@ -6,6 +6,7 @@ API_URL = "https://api.openai.com/v1/chat/completions"
 
 logging.basicConfig(level=logging.INFO)
 
+
 async def get_answer(session, prompt, ai_model_choice, common_instructions, api_key, temperature, seed): 
     full_prompt = f"{common_instructions}\n{prompt}" if common_instructions else prompt
     headers = {
@@ -24,15 +25,11 @@ async def get_answer(session, prompt, ai_model_choice, common_instructions, api_
     logging.info(f"Sending request for prompt: {prompt[:50]}")
     retry_delay = 10  # Initial delay before retrying in seconds
     max_retries = 3  # Maximum number of retries
+    timeout_duration = 180  # Timeout duration in seconds
 
     for attempt in range(max_retries):
-        start_time = asyncio.get_event_loop().time()  # Start timer
         try:
-            async with session.post(API_URL, headers=headers, json=data) as response:
-                # Calculate request time
-                request_time = asyncio.get_event_loop().time() - start_time
-                logging.info(f"Response time for prompt: {prompt[:50]} is {request_time} seconds")
-
+            async with session.post(API_URL, headers=headers, json=data, timeout=timeout_duration) as response:
                 if response.status == 429:
                     logging.error("Rate limit exceeded. Retrying after a delay.")
                     await asyncio.sleep(retry_delay)
