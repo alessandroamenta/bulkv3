@@ -6,7 +6,7 @@ API_URL = "https://api.openai.com/v1/chat/completions"
 
 logging.basicConfig(level=logging.INFO)
 
-async def get_answer(session, prompt, ai_model_choice, common_instructions, api_key, temperature, seed):
+async def get_answer(session, prompt, ai_model_choice, common_instructions, api_key, temperature, seed): 
     full_prompt = f"{common_instructions}\n{prompt}" if common_instructions else prompt
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -18,7 +18,7 @@ async def get_answer(session, prompt, ai_model_choice, common_instructions, api_
         "messages": [{"role": "user", "content": full_prompt}],
         "temperature": temperature,
         "top_p": 1,
-        "seed": seed
+        "seed": seed 
     }
     
     logging.info(f"Sending request for prompt: {prompt[:50]}")
@@ -26,9 +26,11 @@ async def get_answer(session, prompt, ai_model_choice, common_instructions, api_
     max_retries = 3  # Maximum number of retries
 
     for attempt in range(max_retries):
+        start_time = asyncio.get_event_loop().time()  # Start timer
         try:
             async with session.post(API_URL, headers=headers, json=data) as response:
-                request_time = response.elapsed.total_seconds()
+                # Calculate request time
+                request_time = asyncio.get_event_loop().time() - start_time
                 logging.info(f"Response time for prompt: {prompt[:50]} is {request_time} seconds")
 
                 if response.status == 429:
