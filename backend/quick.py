@@ -6,7 +6,7 @@ API_URL = "https://api.openai.com/v1/chat/completions"
 
 logging.basicConfig(level=logging.INFO)
 
-async def get_answer(session, prompt, ai_model_choice, common_instructions, api_key, temperature, seed): 
+async def get_answer(session, prompt, ai_model_choice, common_instructions, api_key, temperature, seed):
     full_prompt = f"{common_instructions}\n{prompt}" if common_instructions else prompt
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -18,35 +18,59 @@ async def get_answer(session, prompt, ai_model_choice, common_instructions, api_
         "messages": [{"role": "user", "content": full_prompt}],
         "temperature": temperature,
         "top_p": 1,
-        "seed": seed 
+        "seed": seed
     }
-    async with session.post(API_URL, headers=headers, json=data) as response:
-        logging.info(f"Request payload: {data}")
-        if response.status != 200:
-            # Log non-200 responses with their text for debugging
-            response_text = await response.text()
-            logging.error(f"Non-200 response received: {response.status}\nResponse text: {response_text}")
-            return None  # Handle non-200 responses appropriately
+    
+    logging.info(f"Sending request for prompt: {prompt[:50]}")
+    retry_delay = 10  # Initial delay before retrying in seconds
+    max_retries = 3  # Maximum number of retries
 
+    for attempt in range(max_retries):
         try:
-            response_data = await response.json()
-            logging.info(f"Response data: {response_data}")
-            # Extract content if the expected structure is present
-            return response_data.get('choices', [{}])[0].get('message', {}).get('content', '')
+            async with session.post(API_URL, headers=headers, json=data) as response:
+                request_time = response.elapsed.total_seconds()
+                logging.info(f"Response time for prompt: {prompt[:50]} is {request_time} seconds")
+
+                if response.status == 429:
+                    logging.error("Rate limit exceeded. Retrying after a delay.")
+                    await asyncio.sleep(retry_delay)
+                    retry_delay *= 2  # Increase delay for next retry
+                    continue  # Retry the request
+
+                if response.status != 200:
+                    response_text = await response.text()
+                    logging.error(f"Non-200 response received: {response.status}\nResponse text: {response_text}")
+                    return None
+
+                response_data = await response.json()
+                return response_data.get('choices', [{}])[0].get('message', {}).get('content', '')
+
         except aiohttp.ClientError as client_error:
-            # This will catch issues like network errors, connection errors, etc.
             logging.error(f"Client error occurred: {client_error}")
-            return None
+            if attempt < max_retries - 1:
+                await asyncio.sleep(retry_delay)
+                retry_delay *= 2
+            else:
+                return None
 
         except asyncio.TimeoutError:
-            # This will catch the specific timeout error
-            logging.error("Request timed out.")
-            return None
+            logging.error("Request timed out. Retrying.")
+            if attempt < max_retries - 1:
+                await asyncio.sleep(retry_delay)
+                retry_delay *= 2
+            else:
+                return None
 
         except Exception as e:
-            # Catch-all for any other exceptions
             logging.error(f"Unexpected exception occurred: {e}")
-            return None
+            if attempt < max_retries - 1:
+                await asyncio.sleep(retry_delay)
+                retry_delay *= 2
+            else:
+                return None
+
+    logging.error("Maximum retry attempts reached.")
+    return None
 
 
 async def get_answers(prompts, ai_model_choice, common_instructions, api_key, temperature, seed, batch_size, task_id, tasks):
