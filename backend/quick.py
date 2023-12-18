@@ -25,7 +25,7 @@ async def get_answer(session, prompt, ai_model_choice, common_instructions, api_
     logging.info(f"Sending request for prompt: {prompt[:50]}")
     retry_delay = 10  # Initial delay before retrying in seconds
     max_retries = 3  # Maximum number of retries
-    timeout_duration = 600  # Timeout duration in seconds
+    timeout_duration = 1000  # Timeout duration in seconds
 
     for attempt in range(max_retries):
         try:
