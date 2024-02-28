@@ -36,7 +36,7 @@ redis_client = redis.Redis(
 DROPBOX_APP_KEY = "npvcigoarpi9ftu"
 DROPBOX_APP_SECRET = "vzhjh9kqojfoipr"
 # Securely store and retrieve your refresh token
-REDIRECT_URI = "https://bulk-v3-service.onrender.com/auth"
+REDIRECT_URI = "https://shark-app-829tg.ondigitalocean.app/auth"
 #REDIRECT_URI = "http://localhost:8000/auth"
 
 

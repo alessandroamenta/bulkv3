@@ -8,7 +8,7 @@ import time
 import dropbox
 
 # Assuming your FastAPI backend is running at the specified URL
-FASTAPI_BASE_URL = "https://bulk-v3-service.onrender.com"
+FASTAPI_BASE_URL = "https://shark-app-829tg.ondigitalocean.app"
 #FASTAPI_BASE_URL = "http://localhost:8000"
 
 logging.basicConfig(level=logging.INFO)
