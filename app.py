@@ -145,7 +145,7 @@ else:
 # Input for custom output file name
 custom_output_name = st.sidebar.text_input("Name Output File (without extension - optional!)")
 
-ai_model_choice = st.sidebar.selectbox("🤖 Choose model:", ["gpt-3.5-turbo-16k", "gpt-4", "gpt-4-1106-preview"])
+ai_model_choice = st.sidebar.selectbox("🤖 Choose model:", ["gpt-4-turbo-preview", "gpt-3.5-turbo-16k", "gpt-4", "gpt-4-1106-preview"])
 temperature = st.sidebar.slider("🌡️ Temperature", min_value=0.0, max_value=1.0, value=0.2, step=0.01)
 seed = 12345  # Fixed seed value
 processing_mode = st.sidebar.selectbox("Select Processing Mode:", ["Quick Mode", "High Accuracy Mode"], index=1)
