@@ -65,54 +65,56 @@ def fetch_task_status(task_id):
         logging.error(f"Error checking task status: {e}")
         return None
 
-def process_task(data, results_placeholder, dropbox_folder, output_file_name):
+def process_task(data, results_placeholder, output_file_name):
     """Function to process the task and handle UI updates"""
-    response = requests.post(f"{FASTAPI_BASE_URL}/process/", json=data)
-    if response.status_code == 200:
-        task_id = response.json().get("task_id")
-        st.session_state['task_id'] = task_id  # Store task_id in session state
-        st.success(f"Processing started for task {task_id}. Please wait...")
+    if data:
+        response = requests.post(f"{FASTAPI_BASE_URL}/process/", json=data)
+        if response.status_code == 200:
+            task_id = response.json().get("task_id")
+            st.session_state['task_id'] = task_id  # Store task_id in session state
+            st.success(f"Processing started for task {task_id}. Please wait...")
 
-        while True:
-            task_info = fetch_task_status(task_id)
-            if task_info and task_info.get("status") == "completed":
-                response_data = task_info
-                answers = response_data["results"].get("results", [])
-                try:
-                    df = pd.DataFrame({'Prompts': prompts, 'Answers': answers})
-                    results_placeholder.write(df)
-                    
-                    # Convert DataFrame to Excel
-                    output = BytesIO()
-                    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                        df.to_excel(writer, index=False)
-                    excel_data = output.getvalue()
-                    b64 = base64.b64encode(excel_data).decode('utf-8')
+            while True:
+                task_info = fetch_task_status(task_id)
+                if task_info and task_info.get("status") == "completed":
+                    response_data = task_info
+                    answers = response_data["results"].get("results", [])
+                    try:
+                        df = pd.DataFrame({'Prompts': prompts, 'Answers': answers})
+                        results_placeholder.write(df)
+                        
+                        # Convert DataFrame to Excel
+                        output = BytesIO()
+                        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                            df.to_excel(writer, index=False)
+                        excel_data = output.getvalue()
+                        b64 = base64.b64encode(excel_data).decode('utf-8')
 
-                    # Provide download link
-                    download_link = f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="{output_file_name}">Download Excel File</a>'
+                        # Provide download link
+                        download_link = f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="{output_file_name}">Download Excel File</a>'
 
-                    st.markdown(download_link, unsafe_allow_html=True)
-                    st.success("🎉 Answers generated successfully!")
-                    autoplay_audio('notification.mp3')
+                        st.markdown(download_link, unsafe_allow_html=True)
+                        st.success("🎉 Answers generated successfully!")
+                        autoplay_audio('notification.mp3')
 
-                    # Upload to Dropbox if authenticated
-                    if dropbox_folder and 'dropbox_token' in st.session_state and st.session_state['dropbox_token']:
-                        if upload_to_dropbox(excel_data, dropbox_folder, output_file_name):
-                            st.success(f"File uploaded to Dropbox successfully at /{dropbox_folder}/{output_file_name}!")
-                        else:
-                            st.error("Failed to upload the file to Dropbox.")
-                    break  # Exit loop after successful processing
-                except Exception as e:
-                    st.error(f"Error creating DataFrame: {e}")
-                    break
-            else:
-                task_progress = task_info.get("progress")
-                progress_message = "GPT is processing your request. Hang tight!" if task_progress is None else f"GPT is whipping up your answers, hang tight! - {task_progress} 😎"
-                results_placeholder.info(progress_message)
-                time.sleep(3)  # Adjust as needed
-    else:
-        st.error("Failed to start processing. Please try again.")
+                        # Upload to Dropbox if authenticated
+                        if 'dropbox_token' in st.session_state and st.session_state['dropbox_token']:
+                            if upload_to_dropbox(excel_data, dropbox_folder, output_file_name):
+                                dropbox_folder = st.session_state.get('dropbox_folder', '')
+                                st.success(f"File uploaded to Dropbox successfully at /{dropbox_folder}/{output_file_name}!")
+                            else:
+                                st.error("Failed to upload the file to Dropbox.")
+                        break  # Exit loop after successful processing
+                    except Exception as e:
+                        st.error(f"Error creating DataFrame: {e}")
+                        break
+                else:
+                    task_progress = task_info.get("progress")
+                    progress_message = "GPT is processing your request. Hang tight!" if task_progress is None else f"GPT is whipping up your answers, hang tight! - {task_progress} 😎"
+                    results_placeholder.info(progress_message)
+                    time.sleep(3)  # Adjust as needed
+        else:
+            st.error("Failed to start processing. Please try again.")
 
 # Ensure Dropbox authentication check is performed on every page load
 check_dropbox_authentication()
@@ -128,6 +130,7 @@ if 'dropbox_authenticated' not in st.session_state:
 if st.session_state['dropbox_authenticated']:
     st.sidebar.success("✅ Authenticated with Dropbox")
     dropbox_folder = st.sidebar.text_input("Dropbox Folder", value='bulk')
+    st.session_state['dropbox_folder'] = dropbox_folder
 
     # Add Log Out button here
     if st.sidebar.button("Log Out from Dropbox"):
@@ -203,8 +206,8 @@ if st.button("🚀 Generate Answers"):
         output_file_name = uploaded_file.name if input_method == "File Upload" and uploaded_file is not None else "answers.xlsx"
 
     # Call process_task with the determined file name
-    process_task(data, results_placeholder, dropbox_folder, output_file_name)
+    process_task(data, results_placeholder, output_file_name)
 
 # Check if a task is already in progress when the page is loaded/refreshed
 if 'task_id' in st.session_state:
-    process_task(None, results_placeholder, dropbox_folder, default_output_file_name)  # Call with None data to just check status
+    process_task(None, results_placeholder, default_output_file_name)  # Call with None data to just check status
