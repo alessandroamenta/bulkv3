@@ -67,6 +67,7 @@ def fetch_task_status(task_id):
 
 def process_task(data, results_placeholder, output_file_name):
     """Function to process the task and handle UI updates"""
+    dropbox_folder = st.session_state.get('dropbox_folder', '')
     if data:
         response = requests.post(f"{FASTAPI_BASE_URL}/process/", json=data)
         if response.status_code == 200:
@@ -100,7 +101,6 @@ def process_task(data, results_placeholder, output_file_name):
                         # Upload to Dropbox if authenticated
                         if 'dropbox_token' in st.session_state and st.session_state['dropbox_token']:
                             if upload_to_dropbox(excel_data, dropbox_folder, output_file_name):
-                                dropbox_folder = st.session_state.get('dropbox_folder', '')
                                 st.success(f"File uploaded to Dropbox successfully at /{dropbox_folder}/{output_file_name}!")
                             else:
                                 st.error("Failed to upload the file to Dropbox.")
