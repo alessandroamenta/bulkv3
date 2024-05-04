@@ -18,7 +18,7 @@ async def get_answer(session, prompt, ai_model_choice, common_instructions, api_
         headers["anthropic-version"] = "2023-06-01"
         data = {
             "model": ai_model_choice,
-            "max_tokens": 1024,
+            "max_tokens": 4000,
             "messages": [
                 {"role": "user", "content": full_prompt}
             ],
