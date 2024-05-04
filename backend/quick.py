@@ -2,25 +2,40 @@ import aiohttp
 import asyncio
 import logging
 
-API_URL = "https://api.openai.com/v1/chat/completions"
+OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
+ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages"
 
 logging.basicConfig(level=logging.INFO)
 
 
-async def get_answer(session, prompt, ai_model_choice, common_instructions, api_key, temperature, seed): 
+async def get_answer(session, prompt, ai_model_choice, common_instructions, api_key, temperature, seed, ai_provider):
     full_prompt = f"{common_instructions}\n{prompt}" if common_instructions else prompt
     headers = {
-        "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
-        "User-Agent": "OpenAI Python v0.27.3"
     }
-    data = {
-        "model": ai_model_choice,
-        "messages": [{"role": "user", "content": full_prompt}],
-        "temperature": temperature,
-        "top_p": 1,
-        "seed": seed 
-    }
+    if ai_provider == "Anthropic":
+        headers["X-API-Key"] = api_key
+        headers["anthropic-version"] = "2023-06-01"
+        data = {
+            "model": ai_model_choice,
+            "max_tokens": 1024,
+            "messages": [
+                {"role": "user", "content": full_prompt}
+            ],
+            "temperature": temperature,
+        }
+        url = ANTHROPIC_API_URL
+    else:
+        headers["Authorization"] = f"Bearer {api_key}"
+        headers["User-Agent"] = "OpenAI Python v0.27.3"
+        data = {
+            "model": ai_model_choice,
+            "messages": [{"role": "user", "content": full_prompt}],
+            "temperature": temperature,
+            "top_p": 1,
+            "seed": seed,
+        }
+        url = OPENAI_API_URL
     
     logging.info(f"Sending request for prompt: {prompt[:50]}")
     retry_delay = 10  # Initial delay before retrying in seconds
@@ -29,7 +44,7 @@ async def get_answer(session, prompt, ai_model_choice, common_instructions, api_
 
     for attempt in range(max_retries):
         try:
-            async with session.post(API_URL, headers=headers, json=data, timeout=timeout_duration) as response:
+            async with session.post(url, headers=headers, json=data, timeout=timeout_duration) as response:
                 if response.status == 429:
                     logging.error("Rate limit exceeded. Retrying after a delay.")
                     await asyncio.sleep(retry_delay)
@@ -42,7 +57,10 @@ async def get_answer(session, prompt, ai_model_choice, common_instructions, api_
                     return None
 
                 response_data = await response.json()
-                return response_data.get('choices', [{}])[0].get('message', {}).get('content', '')
+                if ai_provider == "Anthropic":
+                    return response_data.get('content', [{}])[0].get('text', '')
+                else:
+                    return response_data.get('choices', [{}])[0].get('message', {}).get('content', '')
 
         except aiohttp.ClientError as client_error:
             logging.error(f"Client error occurred: {client_error}")
@@ -72,14 +90,14 @@ async def get_answer(session, prompt, ai_model_choice, common_instructions, api_
     return None
 
 
-async def get_answers(prompts, ai_model_choice, common_instructions, api_key, temperature, seed, batch_size, task_id, tasks):
+async def get_answers(prompts, ai_model_choice, common_instructions, api_key, temperature, seed, batch_size, ai_provider, task_id, tasks):
     results = []
     total = len(prompts)
     # Use a context manager to ensure the session is closed after use
     async with aiohttp.ClientSession() as session:
         for i in range(0, len(prompts), batch_size):
             batch_prompts = prompts[i:i+batch_size]
-            tasks_list = [get_answer(session, prompt, ai_model_choice, common_instructions, api_key, temperature, seed) for prompt in batch_prompts]
+            tasks_list = [get_answer(session, prompt, ai_model_choice, common_instructions, api_key, temperature, seed, ai_provider) for prompt in batch_prompts]
             batch_results = await asyncio.gather(*tasks_list)
             logging.info(f"Batch {i // batch_size + 1}/{(total + batch_size - 1) // batch_size} processed.")
             results.extend(batch_results)
