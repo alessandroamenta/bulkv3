@@ -154,7 +154,8 @@ class PromptRequest(BaseModel):
     temperature: float
     seed: int
     processing_mode: str
-    batch_size: Optional[int] = None   # Optional, used only in Quick Mode
+    batch_size: Optional[int] = None
+    ai_provider: str
 
 @app.get("/test/")
 async def test_endpoint():
@@ -187,7 +188,7 @@ def process_prompts_sync(request: PromptRequest, task_id: str, tasks):
     logging.info("Received request in process_prompts")
     try:
         logging.info(f"Starting synchronous processing for task {task_id}")
-        results = get_answers_sync(request.prompts, request.ai_model_choice, request.common_instructions, request.api_key, request.temperature, request.seed, task_id, tasks)
+        results = get_answers_sync(request.prompts, request.ai_model_choice, request.common_instructions, request.api_key, request.temperature, request.seed, request.ai_provider, task_id, tasks)
         tasks[task_id] = {"status": "completed", "results": results}
         logging.info(f"Task {task_id} completed successfully")
     except Exception as e:
@@ -197,7 +198,7 @@ def process_prompts_sync(request: PromptRequest, task_id: str, tasks):
 async def process_prompts_async(request: PromptRequest, task_id: str, tasks):
     try:
         logging.info(f"Starting async processing for task {task_id} with {len(request.prompts)} prompts.")
-        results = await get_answers_async(request.prompts, request.ai_model_choice, request.common_instructions, request.api_key, request.temperature, request.seed, request.batch_size, task_id, tasks)
+        results = await get_answers_async(request.prompts, request.ai_model_choice, request.common_instructions, request.api_key, request.temperature, request.seed, request.batch_size, request.ai_provider, task_id, tasks)
         tasks[task_id] = {"status": "completed", "results": results}
         logging.info(f"Task {task_id} completed successfully")
         logging.info(f"Async processing completed for task {task_id}.")
