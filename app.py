@@ -121,7 +121,15 @@ check_dropbox_authentication()
 
 # Sidebar configuration
 st.sidebar.title("🛠️ Settings")
-API_KEY = st.sidebar.text_input("🔑 OpenAI API Key", value='', type='password')
+ai_provider_toggle = st.sidebar.toggle("Select AI Provider", value=True, key="ai_provider_toggle")
+if ai_provider_toggle:
+    ai_provider = "Anthropic"
+    ai_provider_emoji = "🦜"
+else:
+    ai_provider = "OpenAI"
+    ai_provider_emoji = "🤖"
+st.sidebar.write(f"You have selected {ai_provider} {ai_provider_emoji}")
+api_key = st.sidebar.text_input("Enter your API key:", type="password")
 
 # Dropbox Integration
 if 'dropbox_authenticated' not in st.session_state:
@@ -148,7 +156,10 @@ else:
 # Input for custom output file name
 custom_output_name = st.sidebar.text_input("Name Output File (without extension - optional!)")
 
-ai_model_choice = st.sidebar.selectbox("🤖 Choose model:", ["gpt-4-turbo-preview", "gpt-3.5-turbo-0125", "gpt-4", "gpt-4-1106-preview"])
+ai_model_choice = st.sidebar.selectbox("🤖 Choose model:", [
+    "gpt-4-turbo-preview", "gpt-3.5-turbo-0125", "gpt-4", "gpt-4-1106-preview",
+    "claude-3-sonnet-20240229", "claude-3-opus-20240229", "claude-3-haiku-20240307"
+])
 temperature = st.sidebar.slider("🌡️ Temperature", min_value=0.0, max_value=1.0, value=0.2, step=0.01)
 seed = 12345  # Fixed seed value
 processing_mode = st.sidebar.selectbox("Select Processing Mode:", ["Quick Mode", "High Accuracy Mode"], index=1)
@@ -184,18 +195,20 @@ elif input_method == "File Upload":
 # Button to start processing
 results_placeholder = st.empty()
 if st.button("🚀 Generate Answers"):
-    if not API_KEY:
-        st.warning("Please enter your OpenAI API Key to proceed.")
+    if not api_key:
+        st.sidebar.error("🚨 Please enter a valid API key to use the app.")
+        st.stop()
     else:
         output_file_name = f"{custom_output_name}.xlsx" if custom_output_name else default_output_file_name
         data = {
             "prompts": prompts, 
             "ai_model_choice": ai_model_choice, 
             "common_instructions": common_instructions, 
-            "api_key": API_KEY, 
+            "api_key": api_key, 
             "temperature": temperature, 
             "seed": seed, 
-            "processing_mode": processing_mode
+            "processing_mode": processing_mode,
+            "ai_provider": ai_provider
         }    
     if processing_mode == "Quick Mode":
         data["batch_size"] = batch_size
