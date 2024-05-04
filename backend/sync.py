@@ -18,7 +18,7 @@ def get_answer(prompt, ai_model_choice, common_instructions, api_key, temperatur
         headers["anthropic-version"] = "2023-06-01"
         data = {
             "model": ai_model_choice,
-            "max_tokens": 1024,
+            "max_tokens": 4000,
             "messages": [
                 {"role": "user", "content": full_prompt}
             ],
