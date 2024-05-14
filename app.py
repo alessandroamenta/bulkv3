@@ -157,7 +157,7 @@ else:
 custom_output_name = st.sidebar.text_input("Name Output File (without extension - optional!)")
 
 ai_model_choice = st.sidebar.selectbox("🤖 Choose model:", [
-    "gpt-4-turbo-preview", "gpt-3.5-turbo-0125", "gpt-4", "gpt-4-1106-preview",
+    "gpt-4-turbo-preview", "gpt-3.5-turbo-0125", "gpt-4", "gpt-4-1106-preview", "gpt-4o",
     "claude-3-sonnet-20240229", "claude-3-opus-20240229", "claude-3-haiku-20240307"
 ])
 temperature = st.sidebar.slider("🌡️ Temperature", min_value=0.0, max_value=1.0, value=0.2, step=0.01)
